@@ -1,0 +1,36 @@
+providers:
+    docker:
+        exposedbydefault: false
+        endpoint: "unix:///var/run/docker.sock"
+    file:
+        directory: "/etc/traefik/routes/"
+        watch: true
+        
+api:
+    insecure: true
+    dashboard: true
+
+entrypoints:
+    web:
+        address: ":81"
+        http:
+            redirections:
+                entryPoint:
+                    to: websecure
+                    scheme: https
+    websecure:
+        address: ":443"
+
+certificatesResolvers:
+    letsEncrypt:
+        acme:
+            storage: /etc/traefik/acme.json
+            email: email # email address for Let's Encrypt
+            httpChallenge:
+                entryPoint: web
+accessLog:
+    filePath: "/var/log/access.log"
+    bufferingSize: 2000
+
+log:
+    filePath: "/var/log/log.log"

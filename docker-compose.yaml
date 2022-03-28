@@ -1,0 +1,311 @@
+version: "3.7"
+services:
+    ###### ----- Networking ----- ######
+    traefik:
+        image: traefik:v2.5.1
+        container_name: traefik
+        ports:
+            - 80:80/tcp
+            - 443:443/tcp
+            - 192.168.1.2:8080:8080/tcp # edit ip address to match your network
+        labels:
+            - traefik.enable=true
+            - traefik.docker.network=traefik-public
+            - traefik.constraint-label=traefik-public
+        networks:
+            - traefik-public
+        volumes:
+            - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+            - ./traefik/routes:/etc/traefik/routes:ro
+            - ./traefik/logs:/var/log
+            - /var/run/docker.sock:/var/run/docker.sock
+ 
+        restart: always
+    
+    uptime-kuma:
+        image: louislam/uptime-kuma
+        container_name: uptime-kuma
+        volumes:
+            - ./uptime-kuma:/app/data
+        ports:
+            - 3001:3001
+        depends_on:
+            - "traefik"
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.uptime_kuma.entryPoints=websecure"
+            - "traefik.http.routers.uptime_kuma.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.uptime_kuma.rule=Host(`status.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.uptime_kuma.loadbalancer.server.port=3001"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=3001"
+                
+        restart: unless-stopped
+    
+    transmission-openvpn:
+        container_name: transmission
+        cap_add:
+            - NET_ADMIN
+        volumes:
+            - './transmission/data:/data'
+            - /mounted:/video                                                     # Edit here to change the mount point
+            - ./transmission/config:/config
+        environment:
+            - TRANSMISSION_WEB_UI=flood-for-transmission
+            - OPENVPN_PROVIDER=PROVIDER # Edit here to change the provider
+            - OPENVPN_USERNAME=USERNAME # Edit here to change the username
+            - OPENVPN_PASSWORD=PASSWORD # Edit here to change the password
+            - LOCAL_NETWORK=192.168.1.0/24 # Edit here to match your network
+        logging:
+            driver: json-file
+            options:
+                max-size: 10m
+        ports:
+            - '9091:9091'
+        image: haugene/transmission-openvpn
+        depends_on:
+            - "traefik"
+        restart: unless-stopped
+
+    ###### ----- Media related ----- ######            
+    overseerr:
+        image: sctx/overseerr:latest
+        container_name: overseerr
+        environment: 
+            - LOG_LEVEL=info
+            - TZ=Europe/Paris
+        ports:
+            - 5055:5055
+        volumes: 
+            - ./overseerr/app/config:/app/config
+        depends_on:
+            - "traefik"
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.overseerr.entryPoints=websecure"
+            - "traefik.http.routers.overseerr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.overseerr.rule=Host(`request.domain.name`)" # Edit here to change the domain name
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=5055"
+        restart: unless-stopped
+
+    heimdall:
+        image: ghcr.io/linuxserver/heimdall
+        container_name: heimdall
+        environment: 
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/Paris
+        volumes: 
+            - ./heimdall:/config
+        depends_on:
+            - "traefik"
+        ports: 
+            - 90:90
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.heimdall.entryPoints=websecure"
+            - "traefik.http.routers.heimdall.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.heimdall.rule=Host(`hub.domain.name`)" # Edit here to change the domain name
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=80"
+        restart: unless-stopped
+        
+    sonarr:
+        image: ghcr.io/linuxserver/sonarr:latest
+        container_name: sonarr
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/paris
+            - DOCKER_MODS=ghcr.io/gilbn/theme.park:sonarr
+            - TP_THEME=organizr
+        volumes:
+            - ./sonarr/data:/config
+            - /mounted:/video                                                    # Edit here to change the mount point
+        ports:
+            - 7878:7878
+            - 8989:8989
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.sonarr.entryPoints=websecure"
+            - "traefik.http.routers.sonarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.sonarr.rule=Host(`sonarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=8989"
+        depends_on:
+            - "traefik"
+        restart: unless-stopped
+
+    #############################################
+    # uncomment to enable second sonarr instance for anime
+    # sonarr_anime:
+    #     image: ghcr.io/linuxserver/sonarr:latest
+    #     container_name: sonarr_anime
+    #     environment:
+    #         - PUID=1000
+    #         - PGID=1000
+    #         - TZ=Europe/paris
+    #         - DOCKER_MODS=ghcr.io/gilbn/theme.park:sonarr
+    #         - TP_THEME=organizr
+    #     volumes:
+    #         - ./sonarr_anime/data:/config
+    #         - /mounted:/video                                                   # Edit here to change the mount point
+    #     ports:
+    #         - 8787:7878
+    #         - 9898:8989
+    #     networks:
+    #         - traefik-public
+    #     labels:
+    #         - "traefik.enable=true"
+    #         - "traefik.http.routers.sonarr_anime.entryPoints=websecure"
+    #         - "traefik.http.routers.sonarr_anime.tls.certResolver=letsEncrypt"
+    #         - "traefik.http.routers.sonarr_anime.rule=Host(`sonarr.domain.name`)" # Edit here to change the domain name
+    #         - "traefik.http.services.sonarr_anime.loadbalancer.server.port=8989"
+    #         - "traefik.docker.network=traefik-public"
+    #         - "traefik.port=9898"
+    #     depends_on:
+    #         - "traefik"
+    #     restart: unless-stopped
+    ################################################
+    
+    bazarr:
+        image: lscr.io/linuxserver/bazarr
+        container_name: bazarr
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/London
+        volumes:
+            - ./bazarr/data/config:/config
+            - /mounted:/video                                                    # Edit here to change the mount point
+        ports:
+            - 6767:6767
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.bazarr.entryPoints=websecure"
+            - "traefik.http.routers.bazarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.bazarr.rule=Host(`bazarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=6767"
+        depends_on:
+            - "traefik"
+        restart: unless-stopped
+
+    readarr:
+        image:  ghcr.io/linuxserver/readarr:nightly
+        container_name: readarr
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/paris
+        volumes:
+            - ./readarr/data:/config
+            - /mounted:/books                                                   # Edit here to change the mount point
+        ports:
+            - 8788:8787
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.readarr.entryPoints=websecure"
+            - "traefik.http.routers.readarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.readarr.rule=Host(`readarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.readarr.loadbalancer.server.port=8787"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=8787"
+        depends_on:
+            - "traefik"
+        restart: unless-stopped
+
+    lidarr:
+        image: lscr.io/linuxserver/lidarr
+        container_name: lidarr
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/paris
+        volumes:
+            - ./lidarr/data:/config
+            - /mounted:/music                                                   # Edit here to change the mount point
+        ports:
+            - 8686:8686
+        networks:
+            - traefik-public
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.lidarr.entryPoints=websecure"
+            - "traefik.http.routers.lidarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.lidarr.rule=Host(`lidarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.lidarr.loadbalancer.server.port=8686"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=8686"
+        depends_on:
+            - "traefik"
+        restart: unless-stopped
+
+    radarr:
+        image: linuxserver/radarr:latest
+        container_name: radarr
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/paris
+        volumes:
+            - ./radarr/data:/config
+            - /mounted:/video                                                   # Edit here to change the mount point
+        ports:
+            - 7676:7878
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.radarr.entryPoints=websecure"
+            - "traefik.http.routers.radarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.radarr.rule=Host(`radarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+        depends_on:
+            - "traefik"
+    
+    ###### ----- Docker control ----- ######
+
+    portainer:
+        container_name: portainer
+        image: portainer/portainer-ce
+        restart: unless-stopped
+        command: -H unix:///var/run/docker.sock
+        ports:
+            - 9000:9000
+        networks:
+            - traefik-public
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
+            - /data/portainer:/data
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.portainer.entryPoints=websecure"
+            - "traefik.http.routers.portainer.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.portainer.rule=Host(`portainer.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+            - "traefik.docker.network=traefik-public"
+            - "traefik.port=9000"
+        depends_on:
+            - "traefik"
+
+networks:
+    traefik-public:
+        external: true
+        driver: bridge

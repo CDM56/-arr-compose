@@ -1,0 +1,15 @@
+# this is an example of a YAML file for traefik routes
+http:
+  routers:
+    app-name: # edit this to match your app name
+      entryPoints:
+        - websecure
+      rule: "Host(`sub.domain.com`)" # edit this to match your app domain
+      service: "app-name" # edit this to match your app name
+      tls:
+        certResolver: letsEncrypt
+  services:
+    app-name: # edit this to match your app name
+      loadBalancer:
+        servers:
+        - url: "http://address:port/" # edit this to match your app address
