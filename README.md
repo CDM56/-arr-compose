@@ -1,5 +1,5 @@
 # -arr-compose
-Stack containing majority of most used -arr apps (except [prowlarr](https://github.com/Prowlarr/Prowlarr), comming soon) with a VPN transmission client and Traefik for off-site use
+Stack containing majority of most used -arr apps with a VPN transmission client and Traefik for off-site use
 
 # stack description
 
@@ -14,6 +14,7 @@ this docker-compose stack is using the following services:
 - [readarr](https://github.com/Readarr/Readarr): a book-related equivalent of Sonarr
 - [Lidarr](https://github.com/Lidarr/Lidarr): a song-related equivalent of Sonarr
 - [Radarr](https://github.com/Radarr/Radarr): a movie scrapper, downloader and organizer
+- [Prowlarr](https://github.com/Prowlarr/Prowlarr): Torrent tracker manager for -arr apps
 - [Portainer](https://github.com/portainer/portainer): a web UI for managing containers and stacks
 
 # Configuration

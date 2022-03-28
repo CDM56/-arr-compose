@@ -278,6 +278,40 @@ services:
         depends_on:
             - "traefik"
     
+    prowlarr:
+        image: ghcr.io/linuxserver/prowlarr:develop
+        container_name: prowlarr
+        environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=Europe/paris
+        volumes:
+        - ./prowlarr/data:/config
+        # network_mode: "host"
+        ports:
+        - 9696:9696
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.prowlarr.entryPoints=websecure"
+            - "traefik.http.routers.prowlarr.tls.certResolver=letsEncrypt"
+            - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.domain.name`)" # Edit here to change the domain name
+            - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+        depends_on:
+            - "traefik"
+    flaresolverr:
+        image: flaresolverr/flaresolverr:latest
+        container_name: flaresolverr
+        environment:
+        - LOG_LEVEL=${LOG_LEVEL:-info}
+        - LOG_HTML=${LOG_HTML:-false}
+        - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+        - TZ=Europe/Paris
+        # network_mode: "host"
+        ports:
+        - "${PORT:-8191}:8191"
+        restart: unless-stopped
+    
     ###### ----- Docker control ----- ######
 
     portainer:
