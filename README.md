@@ -31,4 +31,24 @@ After that, if all is well configured, you can run `sudo docker-compose up -d` a
 
 # Quick-fix & Q&A
 
-Comming Soon ...
+## I cant access my services
+
+First of all, check if your service are running. to do that run `sudo docker-compose ps`. this command return the current status of all the containers in your stack. If on (or more) service(s) are ***DOWN*** or ***RESTARTING***, there is a configuration problem. Please see below instruction (if exist).
+
+## Why can I acces my services loccaly but not with the URL ?
+
+There is 2 main resaon to this problem:
+
+### - Router / Livebox NAT rules
+
+Be Extra sure that you allow port **80** and **443** on your firewall / router NAT rules and redirect them tou your server IP. Without those ports (or redirected to the bad server), all requests are dropped or redirected to the wrong server.
+
+### - DNS Rules
+
+In addition to a **A** rules on DNS provider to your IP (or dynDns), you need to add a **CNAME** rule to each service. you need to configure it like this:
+
+- sub-domain: service.host.url
+- TTL: Default
+- Target: host.url**.** (do not forget the dot at the end)
+
+When you do that, you told your DNS provider to redirect all requests from service.host.url to host.url. Doig that, all requests are landing to traaefik with your original url and, with that, traefik redirect you to the correct service.
