@@ -27,7 +27,11 @@ to use this docker-compose, you need to edit the followings:
 - Traefik/traefik.yml Let's encrypt e-mail
 - Last but not least, allow in firewall port `80` and `443` and forward it to your server.
 
+On top of that, you need to create a Docker virtual Network for all traefik dockers. To do that, run `docker network create traefik-public`.
+
 After that, if all is well configured, you can run `sudo docker-compose up -d` and all the apps in the stack is working and accessible from the web with the url you gave on your services.
+
+To check if all apps are running, you can run `docker compose ps -a` in the folder where you have the `docker-compose.yml`.
 
 # Quick-fix & Q&A
 
@@ -52,3 +56,7 @@ In addition to a **A** rules on DNS provider to your IP (or dynDns), you need to
 - Target: host.url**.** (do not forget the dot at the end)
 
 When you do that, you told your DNS provider to redirect all requests from service.host.url to host.url. Doig that, all requests are landing to traaefik with your original url and, with that, traefik redirect you to the correct service.
+
+## One or more services are stopping all by themselves
+
+If you see one (or more) service not responding, you can trace the log with the command `docker compose logs appname`. Then, search for thhe error in the log and search it on the internet. 
